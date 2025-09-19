@@ -167,7 +167,8 @@ command=/usr/bin/env bash ${FORGE_DIR}/webui.sh \
     --cuda-malloc \
     --api-auth \${FORGE_AUTH_USER}:\${FORGE_AUTH_PASS} \
     --gradio-auth \${FORGE_AUTH_USER}:\${FORGE_AUTH_PASS} \
-    --listen
+    --listen \
+    --port 17860
 autostart=true
 autorestart=true
 startsecs=10
