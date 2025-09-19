@@ -66,11 +66,13 @@ exec > >(tee -a "$PROVISIONING_LOG") 2>&1
 function provisioning_start() {
     provisioning_print_header
     provisioning_get_apt_packages
+    provisioning_install_python     
     provisioning_clone_forge
+    provisioning_setup_python_venv 
     provisioning_setup_python_venv
     provisioning_get_extensions
     # provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
-    provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
+    # provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}" "${CONFIG_FILES[@]}"
 
     # Avoid git errors because we run as root but files are owned by 'user'
@@ -91,6 +93,15 @@ function provisioning_get_apt_packages() {
     apt-get install -y "${APT_PACKAGES[@]}"
 }
 
+function provisioning_install_python() {
+    echo "Устанавливаем Python 3.10 и необходимые пакеты..."
+    apt-get update
+    apt-get install -y software-properties-common
+    add-apt-repository ppa:deadsnakes/ppa -y
+    apt-get update
+    apt-get install -y python3.10 python3.10-venv
+}
+
 # =========================================
 # Клонирование Forge
 # =========================================
@@ -108,7 +119,7 @@ function provisioning_clone_forge() {
 # =========================================
 function provisioning_setup_python_venv() {
     if [[ ! -d "${UBUNTU_HOME}/venv" ]]; then
-        echo "Создаём виртуальное окружение Python..."
+        echo "Создаём виртуальное окружение Python 3.10..."
         python3.10 -m venv "${UBUNTU_HOME}/venv"
     else
         echo "Виртуальное окружение уже существует. Пропускаем."
