@@ -69,7 +69,7 @@ function provisioning_start() {
     provisioning_clone_forge
     provisioning_setup_python_venv
     provisioning_get_extensions
-    provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
+    # provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}" "${CONFIG_FILES[@]}"
 
