@@ -194,9 +194,9 @@ provisioning_start() {
     provisioning_install_python
     provisioning_setup_venv
     provisioning_clone_forge
-    # provisioning_get_extensions
-    # provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
-    # provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
+    provisioning_get_extensions
+    provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
+    provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}" "${CONFIG_FILES[@]}"
     provisioning_setup_supervisor
     provisioning_print_end
