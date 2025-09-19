@@ -3,20 +3,23 @@
 # =========================================
 # Пути и директории
 # =========================================
-FORGE_DIR=${WORKSPACE}/stable-diffusion-webui-forge
+WORKSPACE="/workspace"
+FORGE_DIR="${WORKSPACE}/stable-diffusion-webui-forge"
 LOG_DIR="/var/log/forge"
 UBUNTU_HOME="/home/ubuntu"
 
 mkdir -p "$LOG_DIR"
 
+SUPERVISOR_CONF="/etc/supervisor/conf.d/forge.conf"
+
 # =========================================
-# Пакеты для установки
+# Системные пакеты
 # =========================================
 APT_PACKAGES=(
     git
     wget
+    curl
     software-properties-common
-    python3.10-venv
     supervisor
 )
 
@@ -50,85 +53,86 @@ CONFIG_FILES=(
 )
 
 # =========================================
-# Supervisor config path
-# =========================================
-SUPERVISOR_CONF="/etc/supervisor/conf.d/forge.conf"
-
-# =========================================
-# Логирование provisioning
+# Лог provisioning
 # =========================================
 PROVISIONING_LOG="$LOG_DIR/provisioning.log"
 exec > >(tee -a "$PROVISIONING_LOG") 2>&1
 
 # =========================================
-# Начало provisioning
+# Функции
 # =========================================
-function provisioning_start() {
-    provisioning_print_header
-    provisioning_get_apt_packages
-    provisioning_install_python     
-    provisioning_clone_forge
-    provisioning_setup_python_venv 
-    provisioning_setup_python_venv
-    provisioning_get_extensions
-    # provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
-    # provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
-    provisioning_get_files "${FORGE_DIR}" "${CONFIG_FILES[@]}"
 
-    # Avoid git errors because we run as root but files are owned by 'user'
-    export GIT_CONFIG_GLOBAL=/tmp/temporary-git-config
-    git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
-    
-    provisioning_setup_supervisor
-    provisioning_restart_supervisor
-    provisioning_print_end
+# Печать начала
+function provisioning_print_header() {
+    echo "##############################################"
+    echo "# Provisioning Forge container..."
+    echo "##############################################"
 }
 
-# =========================================
-# Установка пакетов
-# =========================================
+# Печать завершения
+function provisioning_print_end() {
+    echo "##############################################"
+    echo "# Forge setup complete! Managed by supervisor"
+    echo "# Logs: ${LOG_DIR}/forge.log and ${LOG_DIR}/forge.err"
+    echo "##############################################"
+}
+
+# Установка системных пакетов
 function provisioning_get_apt_packages() {
-    echo "Устанавливаем системные пакеты..."
+    echo "Обновляем пакеты и устанавливаем зависимости..."
     apt-get update
     apt-get install -y "${APT_PACKAGES[@]}"
 }
 
+# Установка Python 3.10 через PPA
 function provisioning_install_python() {
-    echo "Устанавливаем Python 3.10 и необходимые пакеты..."
-    apt-get update
-    apt-get install -y software-properties-common
+    echo "Устанавливаем Python 3.10..."
     add-apt-repository ppa:deadsnakes/ppa -y
     apt-get update
     apt-get install -y python3.10 python3.10-venv
 }
 
-# =========================================
+# Создание пользователя ubuntu
+function provisioning_create_ubuntu_user() {
+    if id "ubuntu" &>/dev/null; then
+        echo "Пользователь ubuntu уже существует. Пропускаем создание."
+    else
+        echo "Создаём пользователя ubuntu..."
+        adduser --disabled-password --gecos "" ubuntu
+        usermod -aG sudo ubuntu
+        echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-ubuntu
+        chmod 440 /etc/sudoers.d/90-ubuntu
+    fi
+}
+
+# Настройка прав на папки
+function provisioning_set_permissions() {
+    echo "Назначаем права на папки Forge и логи..."
+    chown -R ubuntu:ubuntu "$FORGE_DIR"
+    chown -R ubuntu:ubuntu "$LOG_DIR"
+}
+
 # Клонирование Forge
-# =========================================
 function provisioning_clone_forge() {
     if [[ ! -d "${FORGE_DIR}" ]]; then
         echo "Клонируем Forge..."
-        git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git "${FORGE_DIR}"
+        sudo -u ubuntu git clone https://github.com/lllyasviel/stable-diffusion-webui-forge.git "${FORGE_DIR}"
     else
         echo "Forge уже установлен. Пропускаем клонирование."
     fi
 }
 
-# =========================================
-# Создание виртуального окружения
-# =========================================
+# Создание виртуального окружения на Python 3.10
 function provisioning_setup_python_venv() {
     if [[ ! -d "${UBUNTU_HOME}/venv" ]]; then
         echo "Создаём виртуальное окружение Python 3.10..."
-        python3.10 -m venv "${UBUNTU_HOME}/venv"
+        sudo -u ubuntu python3.10 -m venv "${UBUNTU_HOME}/venv"
     else
         echo "Виртуальное окружение уже существует. Пропускаем."
     fi
 }
 
-# =========================================
 # Установка Extensions
-# =========================================
 function provisioning_get_extensions() {
     mkdir -p "${FORGE_DIR}/extensions"
     for repo in "${EXTENSIONS[@]}"; do
@@ -136,16 +140,14 @@ function provisioning_get_extensions() {
         path="${FORGE_DIR}/extensions/${dir}"
         if [[ ! -d $path ]]; then
             echo "Скачиваем расширение: ${repo}"
-            git clone "${repo}" "${path}" --recursive
+            sudo -u ubuntu git clone "${repo}" "${path}" --recursive
         else
             echo "Расширение ${dir} уже установлено. Пропускаем."
         fi
     done
 }
 
-# =========================================
 # Загрузка моделей и конфигов
-# =========================================
 function provisioning_get_files() {
     if [[ -z $2 ]]; then return 1; fi
     dir="$1"
@@ -155,23 +157,27 @@ function provisioning_get_files() {
         filename=$(basename "$url")
         if [[ ! -f "${dir}/${filename}" ]]; then
             echo "Скачиваем: $filename"
-            wget -qnc --content-disposition --show-progress -P "$dir" "$url"
+            sudo -u ubuntu wget -qnc --content-disposition --show-progress -P "$dir" "$url"
         else
             echo "Файл $filename уже существует. Пропускаем."
         fi
     done
 }
 
-# =========================================
-# Настройка supervisor
-# =========================================
+# Настройка Supervisor
 function provisioning_setup_supervisor() {
     echo "Настраиваем Supervisor для Forge..."
 
     cat > "$SUPERVISOR_CONF" <<EOL
 [program:forge]
 directory=${FORGE_DIR}
-command=/usr/bin/env bash ${FORGE_DIR}/webui.sh --api --disable-safe-unpickle --enable-insecure-extension-access --no-download-sd-model --no-half-vae --disable-console-progressbars --cuda-malloc --api-auth ${FORGE_AUTH_USER}:${FORGE_AUTH_PASS} --gradio-auth ${FORGE_AUTH_USER}:${FORGE_AUTH_PASS} --listen
+command=/usr/bin/env bash ${FORGE_DIR}/webui.sh \
+    --api --disable-safe-unpickle --enable-insecure-extension-access \
+    --no-download-sd-model --no-half-vae --disable-console-progressbars \
+    --cuda-malloc \
+    --api-auth ${FORGE_AUTH_USER}:${FORGE_AUTH_PASS} \
+    --gradio-auth ${FORGE_AUTH_USER}:${FORGE_AUTH_PASS} \
+    --listen
 autostart=true
 autorestart=true
 startsecs=10
@@ -179,38 +185,40 @@ startretries=3
 stdout_logfile=${LOG_DIR}/forge.log
 stderr_logfile=${LOG_DIR}/forge.err
 stopsignal=TERM
-user=root
+user=ubuntu
 EOL
 }
 
-# =========================================
-# Перезапуск supervisor
-# =========================================
+# Перезапуск Supervisor
 function provisioning_restart_supervisor() {
     echo "Перезапускаем Supervisor..."
     supervisorctl reread
     supervisorctl update
-    supervisorctl start forge
+    supervisorctl restart forge
 }
 
 # =========================================
-# Вспомогательные функции
+# Основная функция
 # =========================================
-function provisioning_print_header() {
-    echo "##############################################"
-    echo "# Provisioning Forge container..."
-    echo "##############################################"
+function provisioning_start() {
+    provisioning_print_header
+    provisioning_get_apt_packages
+    provisioning_install_python
+    provisioning_create_ubuntu_user
+    provisioning_clone_forge
+    provisioning_setup_python_venv
+    provisioning_get_extensions
+    provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
+    provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
+    provisioning_get_files "${FORGE_DIR}" "${CONFIG_FILES[@]}"
+    provisioning_set_permissions
+    provisioning_setup_supervisor
+    provisioning_restart_supervisor
+    provisioning_print_end
 }
 
-function provisioning_print_end() {
-    echo "##############################################"
-    echo "# Forge setup complete! Service managed by supervisor."
-    echo "# Logs: ${LOG_DIR}/forge.log and ${LOG_DIR}/forge.err"
-    echo "##############################################"
-}
-
 # =========================================
-# Запуск provisioning
+# Запуск
 # =========================================
 if [[ ! -f /.noprovisioning ]]; then
     provisioning_start
