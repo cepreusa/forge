@@ -54,13 +54,27 @@ CONFIG_FILES=(
 function provisioning_start() {
     provisioning_print_header
     provisioning_get_apt_packages
-    provisioning_setup_sudo_for_ubuntu
     provisioning_clone_forge
     provisioning_setup_python_venv
     provisioning_get_extensions
     provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}" "${CONFIG_FILES[@]}"
+
+     # Avoid git errors because we run as root but files are owned by 'user'
+    export GIT_CONFIG_GLOBAL=/tmp/temporary-git-config
+    git config --file $GIT_CONFIG_GLOBAL --add safe.directory '*'
+
+    cd "${FORGE_DIR}"
+    LD_PRELOAD=libtcmalloc_minimal.so.4 \
+        python launch.py \
+            --skip-python-version-check \
+            --no-download-sd-model \
+            --do-not-download-clip \
+            --no-half \
+            --port 11404 \
+            --exit
+    
     provisioning_print_end
 }
 
