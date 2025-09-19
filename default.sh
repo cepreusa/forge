@@ -54,8 +54,28 @@ provisioning_print_end() {
 
 # Создание пользователя ubuntu, если его нет
 provisioning_create_ubuntu_user() {
-    if ! id ubuntu &>/dev/null; then
-        echo "Создаём пользователя ubuntu..."
+    echo "Проверяем права пользователя ubuntu..."
+
+    # Проверяем, существует ли пользователь
+    if id ubuntu &>/dev/null; then
+        echo "Пользователь ubuntu найден."
+        
+        # Проверяем, состоит ли он в группе sudo
+        if id -nG ubuntu | grep -qw "sudo"; then
+            echo "У пользователя ubuntu уже есть права sudo. Пропускаем настройку."
+        else
+            echo "Добавляем ubuntu в группу sudo..."
+            usermod -aG sudo ubuntu
+        fi
+
+        # Создаём sudoers-файл для работы без пароля
+        if [[ ! -f /etc/sudoers.d/90-ubuntu ]]; then
+            echo "Создаём /etc/sudoers.d/90-ubuntu..."
+            echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-ubuntu
+            chmod 440 /etc/sudoers.d/90-ubuntu
+        fi
+    else
+        echo "Пользователь ubuntu не найден. Создаём нового..."
         adduser --disabled-password --gecos "" ubuntu
         usermod -aG sudo ubuntu
         echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-ubuntu
