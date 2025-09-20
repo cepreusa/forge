@@ -149,15 +149,18 @@ provisioning_get_files() {
     done
 }
 
-# Настройка Supervisor
+# Настройка Supervisor для управления Forge
 provisioning_setup_supervisor() {
     echo "Настраиваем Supervisor для Forge..."
+    
+    # Создаем директорию для логов
     mkdir -p "$LOG_DIR"
 
+    # Пишем конфиг Supervisor для Forge
     cat > "$SUPERVISOR_CONF" <<EOL
 [program:forge]
 directory=${FORGE_DIR}
-command=/usr/bin/env bash ${FORGE_DIR}/webui.sh \
+command=/usr/bin/env bash -c ${FORGE_DIR}/webui.sh \
     --api \
     --disable-safe-unpickle \
     --enable-insecure-extension-access \
@@ -165,23 +168,32 @@ command=/usr/bin/env bash ${FORGE_DIR}/webui.sh \
     --no-half-vae \
     --disable-console-progressbars \
     --cuda-malloc \
-    --api-auth \${FORGE_AUTH_USER}:\${FORGE_AUTH_PASS} \
-    --gradio-auth \${FORGE_AUTH_USER}:\${FORGE_AUTH_PASS} \
+    --api-auth \$FORGE_AUTH_USER:\$FORGE_AUTH_PASS \
+    --gradio-auth \$FORGE_AUTH_USER:\$FORGE_AUTH_PASS \
     --listen \
-    --port 17860
+    --port 17860'
 autostart=true
 autorestart=true
-startsecs=10
+startsecs=15
 startretries=3
-stdout_logfile=${LOG_DIR}/forge.log
-stderr_logfile=${LOG_DIR}/forge.err
+stdout_logfile=/var/log/forge/forge.log
+stderr_logfile=/var/log/forge/forge.err
 stopsignal=TERM
 user=ubuntu
 EOL
 
+    # Перечитываем конфигурацию Supervisor
     supervisorctl reread
     supervisorctl update
-    supervisorctl restart forge || supervisorctl start forge
+
+    # Запускаем Forge через Supervisor
+    if supervisorctl status forge | grep -q "RUNNING"; then
+        echo "Forge уже запущен — перезапускаем..."
+        supervisorctl restart forge
+    else
+        echo "Запускаем Forge через Supervisor..."
+        supervisorctl start forge
+    fi
 }
 
 # =========================================
