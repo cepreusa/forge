@@ -161,17 +161,16 @@ provisioning_setup_supervisor() {
 [program:forge]
 directory=/home/ubuntu/stable-diffusion-webui-forge
 command=/usr/bin/env bash -c '/home/ubuntu/stable-diffusion-webui-forge/webui.sh \
-    --api \
-    --disable-safe-unpickle \
-    --enable-insecure-extension-access \
-    --no-download-sd-model \
-    --no-half-vae \
-    --disable-console-progressbars \
-    --cuda-malloc \
-    --api-auth $FORGE_AUTH_USER:$FORGE_AUTH_PASS \
-    --gradio-auth $FORGE_AUTH_USER:$FORGE_AUTH_PASS \
-    --listen \
-    --port 17860'
+--api \
+--disable-safe-unpickle \
+--enable-insecure-extension-access \
+--no-download-sd-model \
+--no-half-vae \
+--cuda-malloc \
+--api-auth $FORGE_AUTH_USER:$FORGE_AUTH_PASS \
+--gradio-auth $FORGE_AUTH_USER:$FORGE_AUTH_PASS \
+--listen \
+--port 17860'
 autostart=true
 autorestart=true
 startsecs=15
