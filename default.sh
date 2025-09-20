@@ -156,11 +156,11 @@ provisioning_setup_supervisor() {
     # Создаем директорию для логов
     mkdir -p "$LOG_DIR"
 
-    # Пишем конфиг Supervisor для Forge
+    # Генерируем конфиг Supervisor
     cat > "$SUPERVISOR_CONF" <<EOL
 [program:forge]
-directory=${FORGE_DIR}
-command=/usr/bin/env bash -c ${FORGE_DIR}/webui.sh \
+directory=/home/ubuntu/stable-diffusion-webui-forge
+command=/usr/bin/env bash -c '/home/ubuntu/stable-diffusion-webui-forge/webui.sh \
     --api \
     --disable-safe-unpickle \
     --enable-insecure-extension-access \
@@ -168,8 +168,8 @@ command=/usr/bin/env bash -c ${FORGE_DIR}/webui.sh \
     --no-half-vae \
     --disable-console-progressbars \
     --cuda-malloc \
-    --api-auth \$FORGE_AUTH_USER:\$FORGE_AUTH_PASS \
-    --gradio-auth \$FORGE_AUTH_USER:\$FORGE_AUTH_PASS \
+    --api-auth $FORGE_AUTH_USER:$FORGE_AUTH_PASS \
+    --gradio-auth $FORGE_AUTH_USER:$FORGE_AUTH_PASS \
     --listen \
     --port 17860'
 autostart=true
@@ -182,11 +182,10 @@ stopsignal=TERM
 user=ubuntu
 EOL
 
-    # Перечитываем конфигурацию Supervisor
+    # Обновляем Supervisor и запускаем Forge
     supervisorctl reread
     supervisorctl update
 
-    # Запускаем Forge через Supervisor
     if supervisorctl status forge | grep -q "RUNNING"; then
         echo "Forge уже запущен — перезапускаем..."
         supervisorctl restart forge
@@ -195,6 +194,7 @@ EOL
         supervisorctl start forge
     fi
 }
+
 
 # =========================================
 # Основной процесс
