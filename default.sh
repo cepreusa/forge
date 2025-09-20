@@ -186,13 +186,16 @@ EOL
     supervisorctl reread
     supervisorctl update
 
+     Если Forge уже запущен — просто сообщить об этом
     if supervisorctl status forge | grep -q "RUNNING"; then
-        echo "Forge уже запущен — перезапускаем..."
-        supervisorctl restart forge
-    else
-        echo "Запускаем Forge через Supervisor..."
-        supervisorctl start forge
+        echo "Forge уже запущен Supervisor-ом."
     fi
+
+     # Проверяем, с какими параметрами реально запущен Forge
+    echo "----------------------------------------" | tee -a /var/log/forge/startup_params.log
+    echo "Forge startup parameters (ps output):" | tee -a /var/log/forge/startup_params.log
+    ps -ef | grep webui.sh | grep -v grep | tee -a /var/log/forge/startup_params.log
+    echo "----------------------------------------" | tee -a /var/log/forge/startup_params.log
 }
 
 
