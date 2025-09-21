@@ -9,10 +9,8 @@ SUPERVISOR_CONF="/etc/supervisor/conf.d/forge.conf"
 
 APT_PACKAGES=(
     git
-    wget
-    curl
+    bc
     software-properties-common
-    supervisor
 )
 
 EXTENSIONS=(
@@ -179,6 +177,7 @@ stdout_logfile=/var/log/forge/forge.log
 stderr_logfile=/var/log/forge/forge.err
 stopsignal=TERM
 user=ubuntu
+environment=U2NET_HOME="/home/ubuntu/.u2net",MPLCONFIGDIR="/home/ubuntu/.config/matplotlib"
 EOL
 
     # Обновляем Supervisor и запускаем Forge
