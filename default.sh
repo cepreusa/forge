@@ -147,6 +147,21 @@ provisioning_get_files() {
     done
 }
 
+# Подготовка необходимых директорий для сервисов (Rembg, Matplotlib)
+provisioning_prepare_dirs() {
+    echo "Подготавливаем необходимые директории..."
+
+    # Директория для Rembg
+    echo "  - Создаём каталог для Rembg..."
+    sudo -u ubuntu mkdir -p /home/ubuntu/.u2net
+    sudo chown -R ubuntu:ubuntu /home/ubuntu/.u2net
+
+    # Директория для Matplotlib
+    echo "  - Создаём каталог для Matplotlib..."
+    sudo -u ubuntu mkdir -p /home/ubuntu/.config/matplotlib
+    sudo chown ubuntu:ubuntu /home/ubuntu/.config/matplotlib
+}
+
 # Настройка Supervisor для управления Forge
 provisioning_setup_supervisor() {
     echo "Настраиваем Supervisor для Forge..."
@@ -211,6 +226,7 @@ provisioning_start() {
     provisioning_get_files "${FORGE_DIR}/models/Stable-diffusion" "${CHECKPOINT_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}/models/ESRGAN" "${ESRGAN_MODELS[@]}"
     provisioning_get_files "${FORGE_DIR}" "${CONFIG_FILES[@]}"
+    provisioning_prepare_dirs
     provisioning_setup_supervisor
     provisioning_print_end
 }
